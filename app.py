@@ -6,6 +6,7 @@ import os
 
 app = Flask(__name__)
 
+
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///smartspend.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -66,10 +67,6 @@ class TermsVersion(db.Model):
     content     = db.Column(db.Text, nullable=False)
     is_active   = db.Column(db.Boolean, default=True)
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
-# --- DATABASE INITIALIZATION FUNCTION ---
-TERMS_CONTENT = """<h3>SmartSpend Terms &amp; Conditions...</h3>""" # Keep your full HTML here
-
 
     with app.app_context():
         db.create_all()
