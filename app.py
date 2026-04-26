@@ -6,19 +6,12 @@ import os
 
 app = Flask(__name__)
 
-# 1. Configuration Fixes
-app.secret_key = os.environ.get('SECRET_KEY', 'smartspend_secret_key_2026')
-database_url = os.environ.get('DATABASE_URL')
-
-if database_url and database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql://", 1)
-
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///smartspend.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- MODELS (Keep these exactly as you had them) ---
+
 class User(db.Model):
     __tablename__ = 'user'
     user_id        = db.Column(db.Integer, primary_key=True)
@@ -77,7 +70,7 @@ class TermsVersion(db.Model):
 # --- DATABASE INITIALIZATION FUNCTION ---
 TERMS_CONTENT = """<h3>SmartSpend Terms &amp; Conditions...</h3>""" # Keep your full HTML here
 
-def initialize_database():
+
     with app.app_context():
         db.create_all()
         # Seed Terms
