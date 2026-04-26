@@ -111,12 +111,61 @@ def force_database_sync():
 # Execute the sync immediately when the app script is loaded by Gunicorn
 force_database_sync()
 
+
+# [Note: Insert your /api/register and other routes here]
 # --- 4. ROUTES ---
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# [Note: Insert your /api/register and other routes here]
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    # Validation
+    if User.query.filter_by(email=data.get('email')).first():
+        return jsonify({'error': 'Email already exists'}), 400
+    
+    # Create User
+    new_user = User(
+        name=data.get('name'),
+        email=data.get('email'),
+        password_hash=generate_password_hash(data.get('password')),
+        accepted_terms=True,
+        terms_version='1.0',
+        terms_date=datetime.now(timezone.utc)
+    )
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'message': 'Registration successful!'}), 201
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    user = User.query.filter_by(email=data.get('email')).first()
+    
+    if user and check_password_hash(user.password_hash, data.get('password')):
+        session['user_id'] = user.user_id
+        user.last_login = datetime.now(timezone.utc)
+        user.login_count += 1
+        db.session.commit()
+        return jsonify({'message': 'Login successful', 'user': {'name': user.name, 'role': user.role}})
+    
+    return jsonify({'error': 'Invalid email or password'}), 401
+
+@app.route('/api/terms', methods=['GET'])
+def get_terms():
+    terms = TermsVersion.query.filter_by(is_active=True).first()
+    return jsonify({'content': terms.content if terms else "Terms not found"})
+
+@app.route('/api/me', methods=['GET'])
+def get_me():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not logged in'}), 401
+    user = User.query.get(user_id)
+    return jsonify({'name': user.name, 'email': user.email, 'role': user.role})  
+ 
 
 if __name__ == '__main__':
     app.run(debug=True)
