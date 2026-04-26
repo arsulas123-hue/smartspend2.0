@@ -7,7 +7,18 @@ import os
 app = Flask(__name__)
 
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///smartspend.db'
+# 1. Get the URL
+database_url = os.environ.get('DATABASE_URL')
+
+# 2. THE FIX: If the URL is missing, stop the app immediately and show an error
+if not database_url:
+    raise RuntimeError("CRITICAL ERROR: DATABASE_URL is not set in Render Environment Variables!")
+
+# 3. Fix the prefix (Render uses postgres://, SQLAlchemy needs postgresql://)
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
