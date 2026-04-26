@@ -6,15 +6,15 @@ import os
 
 app = Flask(__name__)
 
-
-# 1. Get the URL
+# --- 1. CONFIGURATION ---
+app.secret_key = os.environ.get('SECRET_KEY', 'smartspend_secret_key_2026')
 database_url = os.environ.get('DATABASE_URL')
 
-# 2. THE FIX: If the URL is missing, stop the app immediately and show an error
+# Fail immediately if DATABASE_URL is missing
 if not database_url:
     raise RuntimeError("CRITICAL ERROR: DATABASE_URL is not set in Render Environment Variables!")
 
-# 3. Fix the prefix (Render uses postgres://, SQLAlchemy needs postgresql://)
+# Fix the 'postgres://' vs 'postgresql://' issue
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
@@ -24,6 +24,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 
+# --- 2. MODELS ---
 class User(db.Model):
     __tablename__ = 'user'
     user_id        = db.Column(db.Integer, primary_key=True)
@@ -38,8 +39,6 @@ class User(db.Model):
     created_at     = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login     = db.Column(db.DateTime, nullable=True)
     login_count    = db.Column(db.Integer, default=0)
-    transactions   = db.relationship('Transaction', backref='owner', lazy=True, foreign_keys='Transaction.user_id')
-    budgets        = db.relationship('Budget', backref='owner', lazy=True, foreign_keys='Budget.user_id')
 
 class Transaction(db.Model):
     __tablename__ = 'transaction'
@@ -79,8 +78,15 @@ class TermsVersion(db.Model):
     is_active   = db.Column(db.Boolean, default=True)
     created_at  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
+   # --- 3. THE BRUTE FORCE SYNC & INITIALIZATION ---
+TERMS_CONTENT = "<h3>SmartSpend Terms & Conditions</h3><p>WMSU Thesis Project (2026).</p>"
+
+def force_database_sync():
+    """Acts like a manual shell command to ensure tables exist in PostgreSQL"""
     with app.app_context():
+        # Create tables
         db.create_all()
+        
         # Seed Terms
         if not TermsVersion.query.filter_by(version='1.0').first():
             db.session.add(TermsVersion(version='1.0', content=TERMS_CONTENT, is_active=True))
@@ -100,12 +106,19 @@ class TermsVersion(db.Model):
             db.session.add(admin)
         
         db.session.commit()
+        print("Database Brute Force Sync: Complete")
 
-# Call initialization once when the script loads
-initialize_database()
+# Execute the sync immediately when the app script is loaded by Gunicorn
+force_database_sync()
 
-# --- ROUTES (Keep your routes as they were) ---
-# ... [Insert your @app.route functions here] ...
+# --- 4. ROUTES ---
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# [Note: Insert your /api/register and other routes here]
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
+
