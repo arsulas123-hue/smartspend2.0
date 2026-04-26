@@ -5,9 +5,25 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 
 app = Flask(__name__)
+# 1. Get the Secret Key from Render (with a fallback for local testing)
 app.secret_key = os.environ.get('SECRET_KEY', 'smartspend_secret_key_2026')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///smartspend.db'
+
+# 2. Get the Database URL from Render environment variables
+database_url = os.environ.get('DATABASE_URL')
+
+# 3. Fix the 'postgres://' vs 'postgresql://' issue (Render uses 'postgres://')
+if database_url and database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+# 4. Use the Cloud DB if available, otherwise fall back to local SQLite
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///smartspend.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# 5. VERY IMPORTANT: Create the tables if they don't exist
+with app.app_context():
+    db.create_all()
 db = SQLAlchemy(app)
 
 class User(db.Model):
