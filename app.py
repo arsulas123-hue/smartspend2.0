@@ -5,20 +5,19 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 
 app = Flask(__name__)
-# 1. Get the Secret Key from Render (with a fallback for local testing)
+# Get the Secret Key from Render (with a fallback for local testing)
 app.secret_key = os.environ.get('SECRET_KEY', 'smartspend_secret_key_2026')
 
-# 2. Get the Database URL from Render environment variables
+# Get the Database URL from Render environment variables
 database_url = os.environ.get('DATABASE_URL')
 
-# 3. Fix the 'postgres://' vs 'postgresql://' issue (Render uses 'postgres://')
+# Fix the 'postgres://' vs 'postgresql://' issue
 if database_url and database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-# 4. Use the Cloud DB if available, otherwise fall back to local SQLite
+# Use the Cloud DB if available, otherwise fall back to local SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///smartspend.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
 db = SQLAlchemy(app)
 
 # 5. VERY IMPORTANT: Create the tables if they don't exist
@@ -339,7 +338,9 @@ TERMS_CONTENT = """<h3>SmartSpend Terms &amp; Conditions <span style="font-size:
 <h4>8. Changes to Terms</h4><p>We may update these Terms from time to time. Continued use after changes constitutes acceptance. We will notify users of significant changes via in-app notification.</p>
 <h4>9. Limitation of Liability</h4><p>SmartSpend is provided &ldquo;as is&rdquo; without warranties. We shall not be liable for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
 <h4>10. Governing Law</h4><p>These Terms are governed by the laws of the Philippines. This Service is developed as a WMSU Thesis Project (2026). For support: support@smartspend.ai</p>"""
-
+# This creates the tables in PostgreSQL if they don't exist yet
+with app.app_context():
+    db.create_all()
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
